@@ -1,0 +1,131 @@
+package HospitalManagementSystem; // Declares the package to organize the class.
+
+import java.sql.*; // Imports all necessary SQL classes (Connection, ResultSet, etc.).
+import java.util.Scanner; // Imports Scanner for reading user input from console.
+
+public class HospitalManagementSystem { // Declares the main class.
+
+    // Database connection details (JDBC URL, username, and password)
+    private static final String url = "jdbc:mysql://localhost:3306/hospital"; // MySQL database URL
+    private static final String username = "root"; // MySQL username
+    private static final String password = "1234"; // MySQL password
+
+    public static void main(String[] args) {
+        // Load the MySQL JDBC driver (needed before establishing a connection)
+        try{
+            Class.forName("com.mysql.cj.jdbc.Driver"); // Loads the JDBC driver class
+        }catch (ClassNotFoundException e){
+            e.printStackTrace(); // Prints error if driver class not found
+        }
+
+        Scanner scanner = new Scanner(System.in); // Creates a Scanner object for user input
+
+        try{
+            // Establish a connection to the database using JDBC
+            Connection connection = DriverManager.getConnection(url, username, password);
+
+            // Create instances of Patient and Doctor classes using the shared connection
+            Patient patient = new Patient(connection, scanner); // Pass connection and scanner to Patient
+            Doctor doctor = new Doctor(connection); // Pass connection to Doctor
+
+            // Start an infinite loop for the main menu
+            while(true){
+                // Display the main menu
+                System.out.println("HOSPITAL MANAGEMENT SYSTEM ");
+                System.out.println("1. Add Patient");
+                System.out.println("2. View Patients");
+                System.out.println("3. View Doctors");
+                System.out.println("4. Book Appointment");
+                System.out.println("5. Exit");
+                System.out.println("Enter your choice: ");
+                int choice = scanner.nextInt(); // Read user’s menu choice
+
+                // Handle user choice using switch-case
+                switch(choice){
+                    case 1:
+                        patient.addPatient(); // Calls method to add a new patient
+                        break;
+                    case 2:
+                        patient.viewPatients(); // Calls method to display all patients
+                        break;
+                    case 3:
+                        doctor.viewDoctors(); // Calls method to display all doctors
+                        break;
+                    case 4:
+                        // Calls method to book an appointment
+                        bookAppointment(patient, doctor, connection, scanner);
+                        break;
+                    case 5:
+                        // Exit message and end the program
+                        System.out.println("THANK YOU! FOR USING HOSPITAL MANAGEMENT SYSTEM!!");
+                        return; // Exits the main method (and program)
+                    default:
+                        // If input is not between 1-5
+                        System.out.println("Enter valid choice!!!");
+                }
+                System.out.println(); // Adds a blank line for spacing
+            }
+
+        }catch (SQLException e){
+            e.printStackTrace(); // Handles any SQL-related exceptions
+        }
+    }
+
+    // Method to book an appointment
+    public static void bookAppointment(Patient patient, Doctor doctor, Connection connection, Scanner scanner){
+        System.out.print("Enter Patient Id: "); // Ask user for patient ID
+        int patientId = scanner.nextInt(); // Read patient ID
+        System.out.print("Enter Doctor Id: "); // Ask user for doctor ID
+        int doctorId = scanner.nextInt(); // Read doctor ID
+        System.out.print("Enter appointment date (YYYY-MM-DD): "); // Ask for appointment date
+        String appointmentDate = scanner.next(); // Read appointment date
+
+        // Check if both patient and doctor exist
+        if(patient.getPatientById(patientId) && doctor.getDoctorById(doctorId)){
+            // Check if doctor is available on the given date
+            if(checkDoctorAvailability(doctorId, appointmentDate, connection)){
+                // SQL to insert a new appointment
+                String appointmentQuery = "INSERT INTO appointments(patient_id, doctor_id, appointment_date) VALUES(?, ?, ?)";
+                try {
+                    PreparedStatement preparedStatement = connection.prepareStatement(appointmentQuery); // Prepare SQL
+                    preparedStatement.setInt(1, patientId); // Set patient ID
+                    preparedStatement.setInt(2, doctorId); // Set doctor ID
+                    preparedStatement.setString(3, appointmentDate); // Set appointment date
+
+                    int rowsAffected = preparedStatement.executeUpdate(); // Execute the insert
+
+                    // Confirm if appointment was successfully booked
+                    System.out.println(rowsAffected > 0 ? "Appointment Booked!" : "Failed to Book Appointment!");
+                }catch (SQLException e){
+                    e.printStackTrace(); // Handle SQL exceptions
+                }
+            } else {
+                // Doctor already has an appointment that day
+                System.out.println("Doctor not available on this date!!");
+            }
+        } else {
+            // Either patient or doctor does not exist in DB
+            System.out.println("Either doctor or patient doesn't exist!!!");
+        }
+    }
+
+    // Method to check if a doctor is free on a specific date
+    public static boolean checkDoctorAvailability(int doctorId, String appointmentDate, Connection connection){
+        // SQL query to count appointments for the doctor on the given date
+        String query = "SELECT COUNT(*) FROM appointments WHERE doctor_id = ? AND appointment_date = ?";
+        try{
+            PreparedStatement preparedStatement = connection.prepareStatement(query); // Prepare the query
+            preparedStatement.setInt(1, doctorId); // Set doctor ID
+            preparedStatement.setString(2, appointmentDate); // Set appointment date
+            ResultSet resultSet = preparedStatement.executeQuery(); // Execute the query
+
+            if(resultSet.next()){ // If result exists
+                int count = resultSet.getInt(1); // Get the count of appointments
+                return count == 0; // Return true if doctor has no appointments that day
+            }
+        } catch (SQLException e){
+            e.printStackTrace(); // Handle SQL exceptions
+        }
+        return false; // If error occurs or doctor is not available
+    }
+}
