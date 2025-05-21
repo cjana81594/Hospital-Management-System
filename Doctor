@@ -1,0 +1,55 @@
+package HospitalManagementSystem; // Declares the package name to organize the class.
+
+import java.sql.Connection; // Imports the Connection class for database connections.
+import java.sql.PreparedStatement; // Imports PreparedStatement for executing parameterized SQL queries.
+import java.sql.ResultSet; // Imports ResultSet to store and process data returned from the database.
+import java.sql.SQLException; // Imports SQLException to handle SQL-related exceptions.
+import java.util.Scanner; // Imports Scanner (though not used in this class).
+
+public class Doctor { // Declares the public class named Doctor.
+    private Connection connection; // A private member variable to hold the database connection.
+
+    public Doctor(Connection connection){ // Constructor that accepts a Connection object.
+        this.connection = connection; // Assigns the passed connection to the instance variable.
+    }
+
+    public void viewDoctors(){ // Method to retrieve and display all doctors from the database.
+        String query = "select * from doctors"; // SQL query to select all records from the 'doctors' table.
+        try{
+            PreparedStatement preparedStatement = connection.prepareStatement(query); // Prepares the SQL query for execution.
+            ResultSet resultSet = preparedStatement.executeQuery(); // Executes the query and stores the result in ResultSet.
+            System.out.println("Doctors: "); // Prints heading.
+            System.out.println("+------------+--------------------+------------------+"); // Table border.
+            System.out.println("| Doctor Id  | Name               | Specialization   |"); // Table column headers.
+            System.out.println("+------------+--------------------+------------------+"); // Table border.
+            while(resultSet.next()){ // Loops through each row in the result set.
+                int id = resultSet.getInt("id"); // Retrieves the doctor's ID.
+                String name = resultSet.getString("name"); // Retrieves the doctor's name.
+                String specialization = resultSet.getString("specialization"); // Retrieves the doctor's specialization.
+                // Prints the doctor data in a formatted row.
+                System.out.printf("| %-10s | %-18s | %-16s |\n", id, name, specialization);
+                System.out.println("+------------+--------------------+------------------+"); // Prints row separator.
+            }
+
+        }catch (SQLException e){ // Catches and handles any SQL exceptions.
+            e.printStackTrace(); // Prints the exception details.
+        }
+    }
+
+    public boolean getDoctorById(int id){ // Method to check if a doctor exists with the given ID.
+        String query = "SELECT * FROM doctors WHERE id = ?"; // SQL query to select a doctor by ID.
+        try{
+            PreparedStatement preparedStatement = connection.prepareStatement(query); // Prepares the SQL query.
+            preparedStatement.setInt(1, id); // Sets the ID parameter in the query.
+            ResultSet resultSet = preparedStatement.executeQuery(); // Executes the query.
+            if(resultSet.next()){ // Checks if the result has any rows (doctor exists).
+                return true; // Returns true if a doctor is found.
+            }else{
+                return false; // Returns false if no doctor is found.
+            }
+        }catch (SQLException e){ // Catches any SQL exceptions.
+            e.printStackTrace(); // Prints the error details.
+        }
+        return false; // Returns false if an exception occurs.
+    }
+}
